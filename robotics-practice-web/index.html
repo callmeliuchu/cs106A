@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>EECS 106A 机器人学练习台</title>
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar" aria-label="章节导航">
+      <div class="brand">
+        <div class="brand-mark" aria-hidden="true">106A</div>
+        <div>
+          <h1>机器人学练习台</h1>
+          <p>问答、编程、提交、批改</p>
+        </div>
+      </div>
+
+      <div class="mode-switch" role="tablist" aria-label="模式">
+        <button id="studentModeBtn" class="active" type="button">学生</button>
+        <button id="teacherModeBtn" type="button">教师</button>
+      </div>
+
+      <nav id="chapterNav" class="chapter-nav"></nav>
+    </aside>
+
+    <main class="workspace">
+      <section id="studentView" class="view active-view" aria-labelledby="studentTitle">
+        <header class="workspace-header">
+          <div>
+            <p class="eyebrow">EECS C106A / 206A</p>
+            <h2 id="studentTitle">章节练习</h2>
+          </div>
+          <div class="header-actions">
+            <button id="aiHintBtn" class="secondary" type="button">AI 提示</button>
+            <button id="exportStudentBtn" class="secondary" type="button">导出我的提交</button>
+          </div>
+        </header>
+
+        <section class="overview-band">
+          <div class="robot-visual" aria-label="机械臂示意图">
+            <canvas id="robotCanvas" width="280" height="180"></canvas>
+          </div>
+          <div class="chapter-summary">
+            <span id="chapterIndex" class="pill"></span>
+            <h3 id="chapterTitle"></h3>
+            <p id="chapterFocus"></p>
+            <pre id="chapterFormula"></pre>
+          </div>
+        </section>
+
+        <form id="answerForm" class="exercise-form">
+          <section class="exercise-block" aria-labelledby="qaTitle">
+            <div class="block-heading">
+              <span>问答题</span>
+              <strong id="qaTitle"></strong>
+            </div>
+            <p id="qaPrompt" class="prompt"></p>
+            <label for="qaAnswer">你的回答</label>
+            <textarea id="qaAnswer" rows="9" required></textarea>
+          </section>
+
+          <section class="exercise-block" aria-labelledby="codingTitle">
+            <div class="block-heading">
+              <span>编程题</span>
+              <strong id="codingTitle"></strong>
+            </div>
+            <p id="codingPrompt" class="prompt"></p>
+            <pre id="starterCode" class="code-sample"></pre>
+            <label for="codeAnswer">你的代码或伪代码</label>
+            <textarea id="codeAnswer" rows="13" spellcheck="false" required></textarea>
+          </section>
+
+          <section class="submit-panel">
+            <div class="field-row">
+              <label for="studentName">姓名</label>
+              <input id="studentName" type="text" autocomplete="name" placeholder="例如：Liuchu" required>
+            </div>
+            <div class="field-row">
+              <label for="studentNote">备注</label>
+              <input id="studentNote" type="text" placeholder="可选：卡点、想让老师重点看的地方">
+            </div>
+            <button id="submitBtn" type="submit">提交本章答案</button>
+          </section>
+        </form>
+      </section>
+
+      <section id="teacherView" class="view" aria-labelledby="teacherTitle">
+        <header class="workspace-header">
+          <div>
+            <p class="eyebrow">Teacher Review</p>
+            <h2 id="teacherTitle">批改工作台</h2>
+          </div>
+          <div class="header-actions">
+            <button id="importBtn" class="secondary" type="button">导入 JSON</button>
+            <button id="exportBtn" class="secondary" type="button">导出批改结果</button>
+            <button id="clearBtn" class="danger" type="button">清空本地数据</button>
+          </div>
+        </header>
+
+        <div class="teacher-layout">
+          <section class="submission-list" aria-label="提交列表">
+            <div class="list-header">
+              <strong>提交</strong>
+              <span id="submissionCount">0</span>
+            </div>
+            <div id="submissionList"></div>
+          </section>
+
+          <section id="reviewPanel" class="review-panel" aria-live="polite">
+            <div class="empty-state">
+              <h3>选择一个提交开始批改</h3>
+              <p>每个提交会显示题目、学生答案、参考要点和评分区。</p>
+            </div>
+          </section>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  <input id="importFile" type="file" accept="application/json" hidden>
+  <script src="./app.js"></script>
+</body>
+</html>
