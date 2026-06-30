@@ -5,6 +5,7 @@ import path from "node:path";
 import os from "node:os";
 
 const root = process.cwd();
+const materialsRoot = path.resolve(root, "..", "eecs106a-fa23-homework");
 const port = Number(process.env.PORT || 5177);
 const settingsPath = path.join(os.homedir(), ".claude", "settings.json");
 
@@ -16,7 +17,9 @@ const mime = new Map([
   [".png", "image/png"],
   [".jpg", "image/jpeg"],
   [".jpeg", "image/jpeg"],
-  [".svg", "image/svg+xml; charset=utf-8"]
+  [".svg", "image/svg+xml; charset=utf-8"],
+  [".pdf", "application/pdf"],
+  [".zip", "application/zip"]
 ]);
 
 function send(res, status, body, contentType = "text/plain; charset=utf-8") {
@@ -145,6 +148,22 @@ async function handleAiHint(req, res) {
 async function serveStatic(req, res) {
   const url = new URL(req.url, `http://${req.headers.host}`);
   const decoded = decodeURIComponent(url.pathname);
+  if (decoded.startsWith("/materials/")) {
+    const materialName = decoded.slice("/materials/".length);
+    const materialPath = path.resolve(materialsRoot, materialName);
+    if (!materialPath.startsWith(materialsRoot)) {
+      send(res, 403, "Forbidden");
+      return;
+    }
+    try {
+      const data = await readFile(materialPath);
+      send(res, 200, data, mime.get(path.extname(materialPath)) || "application/octet-stream");
+    } catch {
+      send(res, 404, "Material not found");
+    }
+    return;
+  }
+
   const relative = decoded === "/" ? "index.html" : decoded.slice(1);
   const filePath = path.resolve(root, relative);
 

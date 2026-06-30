@@ -1,4 +1,4 @@
-const chapters = [
+const conceptualChapters = [
   {
     id: "frames",
     title: "坐标系与刚体变换",
@@ -171,6 +171,8 @@ const chapters = [
   }
 ];
 
+const chapters = window.homeworkChapters || conceptualChapters;
+
 const storageKey = "robotics-practice-submissions-v1";
 const currentKey = "robotics-practice-current-chapter";
 const exerciseKey = "robotics-practice-current-exercise";
@@ -188,6 +190,7 @@ const el = {
   chapterTitle: document.getElementById("chapterTitle"),
   chapterFocus: document.getElementById("chapterFocus"),
   chapterFormula: document.getElementById("chapterFormula"),
+  materialLinks: document.getElementById("materialLinks"),
   exerciseCount: document.getElementById("exerciseCount"),
   exercisePicker: document.getElementById("exercisePicker"),
   qaTitle: document.getElementById("qaTitle"),
@@ -294,6 +297,9 @@ function renderStudent() {
   el.chapterTitle.textContent = chapter.title;
   el.chapterFocus.textContent = chapter.focus;
   el.chapterFormula.textContent = chapter.formula;
+  el.materialLinks.innerHTML = (chapter.materials || [])
+    .map((item) => `<a href="${escapeAttr(item.href)}" target="_blank" rel="noreferrer">${escapeHtml(item.label)}</a>`)
+    .join("");
   renderExercisePicker(chapter);
   el.qaTitle.textContent = exercise.qa.title;
   el.qaPrompt.textContent = exercise.qa.prompt;
@@ -307,7 +313,8 @@ function renderStudent() {
 
 function renderExercisePicker(chapter) {
   const exercises = getExercises(chapter);
-  el.exerciseCount.textContent = `${exercises.length} 组 / ${exercises.length * 2} 题`;
+  const codeCount = exercises.filter((exercise) => exercise.coding?.starter?.trim()).length;
+  el.exerciseCount.textContent = `${exercises.length} 个原作业题组${codeCount ? ` / ${codeCount} 个代码任务` : ""}`;
   el.exercisePicker.innerHTML = "";
   exercises.forEach((exercise, index) => {
     const button = document.createElement("button");
