@@ -173,7 +173,9 @@ const chapters = [
 
 const storageKey = "robotics-practice-submissions-v1";
 const currentKey = "robotics-practice-current-chapter";
+const exerciseKey = "robotics-practice-current-exercise";
 let currentChapterIndex = Number(localStorage.getItem(currentKey) || 0);
+let currentExerciseIndex = Number(localStorage.getItem(exerciseKey) || 0);
 let selectedSubmissionId = null;
 
 const el = {
@@ -186,6 +188,8 @@ const el = {
   chapterTitle: document.getElementById("chapterTitle"),
   chapterFocus: document.getElementById("chapterFocus"),
   chapterFormula: document.getElementById("chapterFormula"),
+  exerciseCount: document.getElementById("exerciseCount"),
+  exercisePicker: document.getElementById("exercisePicker"),
   qaTitle: document.getElementById("qaTitle"),
   qaPrompt: document.getElementById("qaPrompt"),
   qaAnswer: document.getElementById("qaAnswer"),
@@ -221,6 +225,44 @@ function saveSubmissions(items) {
   localStorage.setItem(storageKey, JSON.stringify(items));
 }
 
+function getExercises(chapter) {
+  const base = {
+    label: "基础",
+    qa: chapter.qa,
+    coding: chapter.coding
+  };
+  const extras = window.extraExercisesByChapter?.[chapter.id] || [];
+  return [base, ...extras];
+}
+
+function getCurrentExercise() {
+  const chapter = chapters[currentChapterIndex];
+  const exercises = getExercises(chapter);
+  if (currentExerciseIndex >= exercises.length) currentExerciseIndex = 0;
+  return exercises[currentExerciseIndex];
+}
+
+function getSubmissionExercise(item, chapter) {
+  const exercises = getExercises(chapter);
+  if (Number.isInteger(item.exerciseIndex) && exercises[item.exerciseIndex]) {
+    return exercises[item.exerciseIndex];
+  }
+  return {
+    label: item.exerciseLabel || "基础",
+    qa: {
+      title: item.qaTitle || chapter.qa.title,
+      prompt: item.qaPrompt || chapter.qa.prompt,
+      rubric: chapter.qa.rubric
+    },
+    coding: {
+      title: item.codingTitle || chapter.coding.title,
+      prompt: item.codingPrompt || chapter.coding.prompt,
+      starter: chapter.coding.starter,
+      reference: chapter.coding.reference
+    }
+  };
+}
+
 function toast(message) {
   el.toast.textContent = message;
   el.toast.classList.add("show");
@@ -247,18 +289,38 @@ function renderNav() {
 
 function renderStudent() {
   const chapter = chapters[currentChapterIndex];
+  const exercise = getCurrentExercise();
   el.chapterIndex.textContent = `第 ${currentChapterIndex + 1} 章 / ${chapters.length}`;
   el.chapterTitle.textContent = chapter.title;
   el.chapterFocus.textContent = chapter.focus;
   el.chapterFormula.textContent = chapter.formula;
-  el.qaTitle.textContent = chapter.qa.title;
-  el.qaPrompt.textContent = chapter.qa.prompt;
-  el.codingTitle.textContent = chapter.coding.title;
-  el.codingPrompt.textContent = chapter.coding.prompt;
-  el.starterCode.textContent = chapter.coding.starter;
+  renderExercisePicker(chapter);
+  el.qaTitle.textContent = exercise.qa.title;
+  el.qaPrompt.textContent = exercise.qa.prompt;
+  el.codingTitle.textContent = exercise.coding.title;
+  el.codingPrompt.textContent = exercise.coding.prompt;
+  el.starterCode.textContent = exercise.coding.starter;
   el.qaAnswer.value = "";
-  el.codeAnswer.value = chapter.coding.starter;
+  el.codeAnswer.value = exercise.coding.starter;
   drawRobot(currentChapterIndex);
+}
+
+function renderExercisePicker(chapter) {
+  const exercises = getExercises(chapter);
+  el.exerciseCount.textContent = `${exercises.length} 组 / ${exercises.length * 2} 题`;
+  el.exercisePicker.innerHTML = "";
+  exercises.forEach((exercise, index) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = index === currentExerciseIndex ? "active" : "";
+    button.innerHTML = `题组 ${index + 1}<small>${escapeHtml(exercise.label)}</small>`;
+    button.addEventListener("click", () => {
+      currentExerciseIndex = index;
+      localStorage.setItem(exerciseKey, String(index));
+      renderStudent();
+    });
+    el.exercisePicker.appendChild(button);
+  });
 }
 
 function drawRobot(index) {
@@ -337,10 +399,17 @@ function setMode(mode) {
 function handleSubmit(event) {
   event.preventDefault();
   const chapter = chapters[currentChapterIndex];
+  const exercise = getCurrentExercise();
   const submission = {
     id: crypto.randomUUID(),
     chapterId: chapter.id,
     chapterTitle: chapter.title,
+    exerciseIndex: currentExerciseIndex,
+    exerciseLabel: exercise.label,
+    qaTitle: exercise.qa.title,
+    qaPrompt: exercise.qa.prompt,
+    codingTitle: exercise.coding.title,
+    codingPrompt: exercise.coding.prompt,
     studentName: el.studentName.value.trim(),
     note: el.studentNote.value.trim(),
     qaAnswer: el.qaAnswer.value.trim(),
@@ -374,7 +443,8 @@ function renderTeacher() {
     button.type = "button";
     button.className = `submission-item ${item.id === selectedSubmissionId ? "active" : ""}`;
     const date = new Date(item.createdAt).toLocaleString();
-    button.innerHTML = `${escapeHtml(item.studentName)}<small>${escapeHtml(item.chapterTitle)} · ${date}</small>`;
+    const label = item.exerciseLabel ? ` · ${escapeHtml(item.exerciseLabel)}` : "";
+    button.innerHTML = `${escapeHtml(item.studentName)}<small>${escapeHtml(item.chapterTitle)}${label} · ${date}</small>`;
     button.addEventListener("click", () => {
       selectedSubmissionId = item.id;
       renderTeacher();
@@ -388,25 +458,28 @@ function renderReview(id) {
   const item = getSubmissions().find((entry) => entry.id === id);
   if (!item) return;
   const chapter = chapters.find((entry) => entry.id === item.chapterId);
+  const exercise = getSubmissionExercise(item, chapter);
   el.reviewPanel.innerHTML = `
     <h3>${escapeHtml(item.chapterTitle)}</h3>
-    <p class="prompt">学生：${escapeHtml(item.studentName)}${item.note ? " · 备注：" + escapeHtml(item.note) : ""}</p>
+    <p class="prompt">题组：${escapeHtml(exercise.label)} · 学生：${escapeHtml(item.studentName)}${item.note ? " · 备注：" + escapeHtml(item.note) : ""}</p>
     <div class="review-grid">
       <div class="answer-box">
-        <strong>问答题答案</strong>
+        <strong>问答题答案：${escapeHtml(exercise.qa.title)}</strong>
+        <p class="prompt">${escapeHtml(exercise.qa.prompt)}</p>
         <pre>${escapeHtml(item.qaAnswer)}</pre>
       </div>
       <div class="rubric-box">
         <strong>问答参考要点</strong>
-        <pre>${escapeHtml(chapter.qa.rubric)}</pre>
+        <pre>${escapeHtml(exercise.qa.rubric)}</pre>
       </div>
       <div class="answer-box">
-        <strong>编程题答案</strong>
+        <strong>编程题答案：${escapeHtml(exercise.coding.title)}</strong>
+        <p class="prompt">${escapeHtml(exercise.coding.prompt)}</p>
         <pre>${escapeHtml(item.codeAnswer)}</pre>
       </div>
       <div class="rubric-box">
         <strong>编程参考要点</strong>
-        <pre>${escapeHtml(chapter.coding.reference)}</pre>
+        <pre>${escapeHtml(exercise.coding.reference)}</pre>
       </div>
     </div>
     ${item.aiReview ? `<div class="ai-box"><strong>AI 辅助批改</strong><pre>${escapeHtml(item.aiReview)}</pre></div>` : ""}
@@ -456,6 +529,8 @@ async function aiReview(id) {
   const item = items.find((entry) => entry.id === id);
   const chapter = chapters.find((entry) => entry.id === item?.chapterId);
   if (!item || !chapter) return;
+  const exercise = getSubmissionExercise(item, chapter);
+  const reviewChapter = { ...chapter, qa: exercise.qa, coding: exercise.coding };
 
   const button = document.getElementById("aiReviewBtn");
   button.disabled = true;
@@ -464,7 +539,7 @@ async function aiReview(id) {
     const response = await fetch("/api/ai-review", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ submission: item, chapter })
+      body: JSON.stringify({ submission: item, chapter: reviewChapter })
     });
     if (!response.ok) {
       const detail = await response.text();
@@ -484,11 +559,13 @@ async function aiReview(id) {
 
 async function aiHint() {
   const chapter = chapters[currentChapterIndex];
+  const exercise = getCurrentExercise();
+  const hintChapter = { ...chapter, qa: exercise.qa, coding: exercise.coding };
   try {
     const response = await fetch("/api/ai-hint", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ chapter })
+      body: JSON.stringify({ chapter: hintChapter })
     });
     if (!response.ok) throw new Error(await response.text());
     const data = await response.json();
